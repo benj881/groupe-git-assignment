@@ -1,5 +1,3 @@
-//SUUNA SAMUEL
-//BENJAMIN KIZITO
 //NSUBUGA WINTER RUTH
 #include <stdio.h>
 int main(){
