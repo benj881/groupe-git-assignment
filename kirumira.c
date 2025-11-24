@@ -1,8 +1,6 @@
-//SUUNA SAMUEL
-//BENJAMIN KIZITO
-//NSUBUGA WINTER RUTH
 #include <stdio.h>
 int main(){
-    printf("Hello from team group E");
-    return o;
+    char name[30] ="Kirumira Henry";
+printf("I am %s member of group E", name);
+return 0;
 }
