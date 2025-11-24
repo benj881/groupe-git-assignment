@@ -3,6 +3,6 @@
 //NSUBUGA WINTER RUTH
 #include <stdio.h>
 int main(){
-    printf("Hello from team group E");
+    printf("group member");
     return o;
 }
