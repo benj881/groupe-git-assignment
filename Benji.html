@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UICT Attendance System (Geo-Fenced)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  /* --- BASE STYLES (from original code) --- */
+  body { 
+    font-family: 'Segoe UI', Arial, sans-serif; 
+    background: #0f111a; 
+    color: #fff; 
+    margin:0; 
+    padding:0; 
+    min-height: 100vh;
+    overflow-x: hidden;
+  }    
+  header { 
+    background: #1b1f2a; 
+    color: #00f0ff; 
+    padding: 20px 10px;
+    text-align: center; 
+    font-size: 24px;
+    letter-spacing:1px; 
+    z-index:10; 
+    position:sticky;
+    top: 0;
+  }    
+  .page { 
+    display: none; 
+    padding: 20px 10px;
+    position:relative; 
+    z-index:2; 
+    transition: all 0.6s ease;
+    max-width: 600px;
+    margin: 0 auto;
+    min-height: calc(100vh - 64px);
+  }    
+  .active { display: block; }    
+  .btn { 
+    display: block; 
+    margin: 10px auto; 
+    padding: 14px 22px; 
+    width: 90%;
+    max-width: 300px;
+    background: #00f0ff; 
+    color: #0f111a; 
+    border: none; 
+    border-radius: 10px; 
+    cursor: pointer; 
+    font-size: 16px; 
+    transition: 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 240, 255, 0.2);
+  }    
+  .btn:active { transform: translateY(2px); }
+  .btn:hover { background: #00c0cc; }
+  .btn:disabled {
+    background: #444; 
+    color: #777; 
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  input, select { 
+    display: block; 
+    margin: 15px auto;
+    padding: 12px;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 5px; 
+    border: 1px solid #00f0ff; 
+    background: #1b1f2a; 
+    color: #fff;
+    box-sizing: border-box;
+    /* Added appearance and font-size for mobile look */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    font-size: 16px; 
+  }    
+  
+  /* --- Table/Coordinator Styles --- */
+  table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 10px; 
+    color: #fff; 
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }    
+  th, td { 
+    border: 1px solid #00f0ff; 
+    padding: 8px;
+    text-align: left; 
+    min-width: 80px;
+    font-size: 14px;
+  }    
+  th { background: #00f0ff; color: #0f111a; }    
+  .confirm-btn { 
+    background: #0f111a; 
+    color: #00f0ff; 
+    border: 1px solid #00f0ff; 
+    padding: 5px 10px; 
+    border-radius: 5px; 
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+  
+  /* --- Status Message Styles --- */
+  .success { color: #00ff77; text-align:center; padding: 10px; }    
+  .error { color: #ff4c4c; text-align:center; padding: 10px; }
+  
+  /* --- Refactored Geo-Location Card Styles (to match image) --- */
+  .geo-card {
+    background: #1b1f2a;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+  }
+  .coords-display { 
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    color: #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .coords-display strong {
+    font-weight: normal;
+    color: #fff;
+  }
+  .accuracy-display { 
+    font-weight: bold; 
+    margin-bottom: 10px;
+    color: #00f0ff;
+    font-size: 14px;
+  }
+  .geo-status {
+    padding: 8px; 
+    border-radius: 5px; 
+    margin-top: 10px; 
+    font-size: 14px;
+    text-align: center;
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  /* Updated colors for status messages to be cleaner */
+  .geo-good { background: #00ff7733; color: #00ff77; border: 1px solid #00ff7711; }
+  .geo-medium { background: #ffff0033; color: #ffff00; border: 1px solid #ffff0011; }
+  .geo-bad { background: #ff4c4c33; color: #ff4c4c; border: 1px solid #ff4c4c11; }
+  
+  .label-text {
+      display: block;
+      width: 90%;
+      max-width: 400px;
+      margin: 10px auto 0;
+      font-size: 14px;
+      color: #aaa;
+  }
+
+  /* --- Intro & Matrix Styles (preserved) --- */
+  #intro { 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh; 
+    background: #0f111a; 
+    position: fixed; 
+    width: 100%; 
+    top:0; 
+    left:0; 
+    z-index: 1000; 
+    flex-wrap: wrap; 
+    text-align:center;
+    padding: 10px;
+    box-sizing: border-box;
+  }  
+  .letter { 
+    font-size: 30px;
+    font-weight: bold; 
+    color: #00f0ff; 
+    opacity: 0; 
+    transform: translateY(-100px); 
+    animation: drop 0.6s forwards; 
+    margin:1px; 
+  }  
+  @media (min-width: 600px) {
+    .letter { font-size: 50px; margin: 2px; }
+    header { font-size: 28px; }
+  }
+  @keyframes drop { to { opacity:1; transform: translateY(0); } }  
+  #matrixCanvas { 
+    position:fixed; 
+    top:0; 
+    left:0; 
+    width:100%; 
+    height:100%; 
+    z-index:1; 
+    background: #0f111a; 
+  }
+
+  /* --- Admin Portal Styles --- */
+  .class-report {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #00f0ff;
+      border-radius: 5px;
+      background: #1b1f2a;
+      margin-bottom: 30px;
+  }
+  .class-report h4 {
+      color: #00f0ff;
+      margin-top: 0;
+      border-bottom: 1px solid #00f0ff;
+      padding-bottom: 5px;
+  }
+  .password-form {
+      background: #1b1f2a;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #00ff77;
+      margin-bottom: 20px;
+  }
+  .password-form h3 {
+      color: #00ff77;
+      margin-top: 0;
+  }
+</style>
+</head>    
+<body>  
+<canvas id="matrixCanvas"></canvas>  
+<div id="intro">      
+  <span class="letter">U</span><span class="letter">I</span><span class="letter">C</span><span class="letter">T</span>
+  <span class="letter"> </span>
+  <span class="letter">A</span><span class="letter">T</span><span class="letter">T</span><span class="letter">E</span>
+  <span class="letter">N</span><span class="letter">D</span><span class="letter">A</span><span class="letter">N</span>
+  <span class="letter">C</span><span class="letter">E</span>
+  <span class="letter"> </span>
+  <span class="letter">S</span><span class="letter">Y</span><span class="letter">S</span><span class="letter">T</span>
+  <span class="letter">E</span><span class="letter">M</span>
+</div>  
+
+<header>New Activity</header> 
+
+<div id="home" class="page active">    
+  <h2>Select Your Class</h2>    
+  <button class="btn" onclick="openPage('dswe')">DSWE</button>    
+  <button class="btn" onclick="openPage('dedt')">DEDT</button>    
+  <button class="btn" onclick="openPage('dsma')">DSMA</button>    
+  <button class="btn" onclick="openPage('dece')">DECE</button>    
+  <button class="btn" onclick="openPage('dcs')">DCS</button>    
+  <button class="btn" onclick="openPage('ditb')">DITB</button>    
+  ---
+  <h2>Admin & Coordination</h2>    
+  <button class="btn" onclick="openPage('coordinator')">Coordinator Portal</button>    
+  <button class="btn" style="background: #ffc107; color: #0f111a;" onclick="openPage('room')">Admin Portal</button>    
+</div>  
+
+<div id="class-page" class="page">    
+  
+  <p id="message"></p>    
+  
+  <label for="session-type" class="label-text">Session type</label>
+  <select id="session-type">    
+    <option value="">Loading current timetable...</option>
+  </select>    
+  
+  <div class="label-text" style="color:#fff; font-size:16px;">Location</div>
+  <div class="geo-card">
+    <div class="coords-display" id="geo-coords">
+        <span>Coordinates</span>
+        <span style="font-size: 18px; margin-left: 5px;">&#x1F4CD;</span> </div>
+    <div class="accuracy-display" id="geo-accuracy">Accuracy: ...</div>
+    
+    <div id="geo-status" class="geo-status geo-medium">
+        <span style="font-size: 18px;">&#x2705;</span> Checking campus location...
+    </div>
+    
+    <button class="btn" id="refreshLocationBtn" style="background: #e0e0e0; color: #1b1f2a; border: 1px solid #1b1f2a; max-width: none; font-size:16px; margin-top: 15px;" onclick="getLocation()">Refresh Location</button>
+  </div>
+  
+  <label for="school-select" class="label-text">School *</label>
+  <select id="school-select" disabled style="border-color: #d10000; box-shadow: 0 0 5px #d1000088;">    
+    <option value="uict">UICT (Uganda Institute of Communication and Technology)</option>
+  </select>
+  
+  <label for="student-name" class="label-text">Name</label>
+  <input type="text" id="student-name" placeholder="Full Name">    
+  
+  <label for="student-reg" class="label-text">Registration Number</label>
+  <input type="text" id="student-reg" placeholder="Registration Number">    
+  
+  <label for="student-password" class="label-text">Class Password</label>
+  <input type="password" id="student-password" placeholder="Class Password">    
+  
+  <button class="btn" id="submitAttendanceBtn" onclick="submitAttendance()">CONFIRM</button> 
+  
+  <button class="btn" onclick="openPage('home')" style="background: #444; margin-top: 30px;">⬅ Back to Home</button>    
+</div>  
+<div id="coordinator" class="page">    
+  <h2>Coordinator Portal</h2>    
+  <select id="class-select">    
+    <option value="">Select Class</option>    
+    <option value="dswe">DSWE</option>    
+    <option value="dedt">DEDT</option>    
+    <option value="dsma">DSMA</option>    
+    <option value="dece">DECE</option>    
+    <option value="dcs">DCS</option>    
+    <option value="ditb">DITB</option>    
+  </select>    
+  <input type="password" id="coordinator-password" placeholder="Coordinator Password">    
+  <button class="btn" onclick="loadClass()">Load Class</button>    
+  <p id="coord-msg"></p>    
+  <div id="attendance-section" style="display:none;">    
+    <h3 id="class-att-title"></h3>    
+    
+    <div style="display:flex; justify-content: space-around; margin-bottom: 15px;">
+        <button class="btn" style="width: 30%; max-width: none; background: #ff4c4c; color: #1b1f2a;" onclick="clearDailyAttendance()">Reset Daily</button>
+        <button class="btn" style="width: 30%; max-width: none;" onclick="downloadPDF()">Download PDF</button>    
+        <button class="btn" style="width: 30%; max-width: none;" onclick="generateReport()">Generate Report</button> 
+    </div>
+    
+    <div class="table-container"> <table id="students-table">    
+          <thead>    
+            <tr>    
+              <th>Name</th>    
+              <th>Reg Number</th>    
+              <th>Status</th>    
+              <th>Submitted At</th>    
+            </tr>    
+          </thead>    
+          <tbody></tbody>    
+        </table>    
+    </div>
+  </div>    
+  <button class="btn" onclick="openPage('home')">⬅ Back</button>    
+</div>  
+
+<div id="room" class="page">
+    <h2>Admin Control Portal</h2>
+    <input type="password" id="admin-password" placeholder="Admin Password">
+    <button class="btn" style="background: #00ff77; color: #0f111a;" onclick="loadAllClasses()">Access Portal</button>
+    <p id="admin-msg"></p>
+
+    <div id="admin-content" style="display: none;">
+        
+        <div class="password-form">
+            <h3>Password Management</h3>
+            <select id="password-class-select">
+                <option value="">Select Class/Portal</option>
+                <option value="dswe_class">DSWE (Class)</option>
+                <option value="dswe_coord">DSWE (Coordinator)</option>
+                <option value="dedt_class">DEDT (Class)</option>
+                <option value="dedt_coord">DEDT (Coordinator)</option>
+                <option value="dsma_class">DSMA (Class)</option>
+                <option value="dsma_coord">DSMA (Coordinator)</option>
+                <option value="dece_class">DECE (Class)</option>
+                <option value="dece_coord">DECE (Coordinator)</option>
+                <option value="dcs_class">DCS (Class)</option>
+                <option value="dcs_coord">DCS (Coordinator)</option>
+                <option value="ditb_class">DITB (Class)</option>
+                <option value="ditb_coord">DITB (Coordinator)</option>
+                <option value="admin">Admin (Portal)</option>
+            </select>
+            <input type="password" id="new-password" placeholder="New Password">
+            <button class="btn" style="background: #00f0ff; max-width: none; margin-top: 5px;" onclick="changePassword()">Change Password</button>
+            <p id="password-msg"></p>
+        </div>
+
+        <h3>Registered Student Lists</h3>
+        <div id="all-students-list">
+            </div>
+    </div>
+    
+    <button class="btn" onclick="openPage('home')">⬅ Back</button>
+</div>
+<script>    
+// --- Geo-fencing Configuration ---
+const uictLocations = [
+    { lat: 0.32702, lon: 32.61451 }, 
+    { lat: 0.32722, lon: 32.61472 }, 
+    { lat: 0.32700, lon: 32.61453 }  
+];
+const ALLOWED_DISTANCE_THRESHOLD = 0.001; 
+let isLocationValid = false; 
+
+// --- Attendance System JS ---    
+let classPasswords = JSON.parse(localStorage.getItem('classPasswords')) || 
+    { dswe:"dswe1", dedt:"dedt1", dsma:"dsma1", dece:"dece1", dcs:"dcs1", ditb:"ditb1" };    
+let coordinatorPasswords = JSON.parse(localStorage.getItem('coordinatorPasswords')) || 
+    { dswe:"1234", dedt:"1234", dsma:"1234", dece:"1234", dcs:"dcs1", ditb:"ditb1" };    
+
+let adminPassword = localStorage.getItem('adminPassword') || "chaos12";
+
+// Initial sync to localStorage 
+localStorage.setItem('classPasswords', JSON.stringify(classPasswords));
+localStorage.setItem('coordinatorPasswords', JSON.stringify(coordinatorPasswords));
+if (!localStorage.getItem('adminPassword')) {
+    localStorage.setItem('adminPassword', "chaos12");
+    adminPassword = "chaos12";
+} else {
+    adminPassword = localStorage.getItem('adminPassword');
+}
+
+
+const classNames = ["dswe", "dedt", "dsma", "dece", "dcs", "ditb"]; // Utility array
+
+// --- FULL TIMETABLE DATA FROM 207155.JPG (Extracted and structured) ---
+const timetableData = [
+    // Times are 24-hour format (e.g., 8:00 to 10:00)
+    // MONDAY
+    { day: 1, class: 'dswe', start: '8:00', end: '10:00', course: 'ESGT1112', title: 'Principles of Software Eng.' },
+    { day: 1, class: 'dedt', start: '8:00', end: '10:00', course: 'CSIT1113', title: 'Engineering Mathematics' },
+    { day: 1, class: 'dsma', start: '8:00', end: '10:00', course: 'BSIT1103', title: 'Data Structures and Algorithms' },
+    { day: 1, class: 'dece', start: '8:00', end: '10:00', course: 'ECIT1112', title: 'Principles of Electronics' },
+    { day: 1, class: 'dcs', start: '8:00', end: '10:00', course: 'ADIT1101', title: 'Maths and Functions' },
+    { day: 1, class: 'ditb', start: '8:00', end: '10:00', course: 'DIT1101', title: 'Introduction to ICT' },
+    
+    { day: 1, class: 'dedt', start: '10:30', end: '12:30', course: 'DEDT1101', title: 'Intro to Emerging Tech.' },
+    { day: 1, class: 'dece', start: '10:30', end: '12:30', course: 'ECIT1101', title: 'Digital Logic and Design' },
+    { day: 1, class: 'dcs', start: '10:30', end: '12:30', course: 'BCIT1111', title: 'Introduction to Software Eng.' },
+    { day: 1, class: 'ditb', start: '10:30', end: '12:30', course: 'DIT1103', title: 'Fundamentals of ICT' },
+    
+    { day: 1, class: 'dswe', start: '10:30', end: '12:30', course: 'DSWE1112', title: 'Principles of Software Engineering Pracs.' },
+    { day: 1, class: 'dsma', start: '10:30', end: '12:30', course: 'DSMA1101', title: 'Intro to Data Science Pracs.' },
+
+    { day: 1, class: 'dedt', start: '13:30', end: '15:30', course: 'DSIT1111', title: 'Digital Logic Pracs.' },
+    { day: 1, class: 'dece', start: '13:30', end: '15:30', course: 'ECIT1101', title: 'Digital Logic and Design Pracs.' },
+    { day: 1, class: 'dcs', start: '13:30', end: '15:30', course: 'CSIT1111', title: 'Engineer Maths' },
+    { day: 1, class: 'ditb', start: '13:30', end: '15:30', course: 'DIT1101', title: 'Fundamentals of ICT Pracs.' },
+    
+    { day: 1, class: 'dswe', start: '13:30', end: '15:30', course: 'ESGT1101', title: 'Software Engineering' },
+    { day: 1, class: 'dsma', start: '13:30', end: '15:30', course: 'DSMA1103', title: 'Sig. and Sys.' },
+
+
+    // TUESDAY
+    { day: 2, class: 'dswe', start: '8:00', end: '10:00', course: 'CSIT1101', title: 'Intro to OOP' },
+    { day: 2, class: 'dedt', start: '8:00', end: '10:00', course: 'CSIT1103', title: 'Computer Architecture' },
+    { day: 2, class: 'dsma', start: '8:00', end: '10:00', course: 'DSMA1104', title: 'Data Visualization' },
+    { day: 2, class: 'dece', start: '8:00', end: '10:00', course: 'ECIT1111', title: 'Intro to Programming' },
+    { day: 2, class: 'dcs', start: '8:00', end: '10:00', course: 'BCIT1101', title: 'Data & Digital Age' },
+    { day: 2, class: 'ditb', start: '8:00', end: '10:00', course: 'DIT1102', title: 'Intro to Data Comm.' },
+
+    { day: 2, class: 'dedt', start: '10:30', end: '12:30', course: 'CSIT1103', title: 'Computer Architecture Pracs.' },
+    { day: 2, class: 'dsma', start: '10:30', end: '12:30', course: 'DSMA1104', title: 'Data Visualization Pracs.' },
+    { day: 2, class: 'dece', start: '10:30', end: '12:30', course: 'ECIT1111', title: 'Intro to Programming Pracs.' },
+    { day: 2, class: 'dcs', start: '10:30', end: '12:30', course: 'BCIT1101', title: 'Data & Digital Age Pracs.' },
+    { day: 2, class: 'ditb', start: '10:30', end: '12:30', course: 'DIT1102', title: 'Intro to Data Comm. Pracs.' },
+
+    { day: 2, class: 'dswe', start: '10:30', end: '12:30', course: 'CSIT1101', title: 'Intro to OOP Pracs.' },
+
+    { day: 2, class: 'dedt', start: '13:30', end: '15:30', course: 'CSIT1103', title: 'Computer Architecture Pracs.' },
+    { day: 2, class: 'dswe', start: '13:30', end: '15:30', course: 'ESGT1111', title: 'Engineer Maths' },
+    { day: 2, class: 'dsma', start: '13:30', end: '15:30', course: 'DSMA1102', title: 'Data Science' },
+    { day: 2, class: 'dece', start: '13:30', end: '15:30', course: 'ECIT1112', title: 'Principles of Electronics Pracs.' },
+
+
+    // WEDNESDAY
+    { day: 3, class: 'dswe', start: '8:00', end: '10:00', course: 'MCIT1112', title: 'Computer Finance' },
+    { day: 3, class: 'dedt', start: '8:00', end: '10:00', course: 'DEDT1102', title: 'Intro to Emerging Tech. Pracs.' },
+    { day: 3, class: 'dsma', start: '8:00', end: '10:00', course: 'DSIT1103', title: 'Theory of Data Mining' },
+    { day: 3, class: 'dece', start: '8:00', end: '10:00', course: 'ECIT1103', title: 'Signals and Systems' },
+    { day: 3, class: 'dcs', start: '8:00', end: '10:00', course: 'ADIT1112', title: 'Computer Finance Pracs.' },
+    { day: 3, class: 'ditb', start: '8:00', end: '10:00', course: 'BCIT1103', title: 'Intro to ICT Pracs.' },
+
+    { day: 3, class: 'dswe', start: '10:30', end: '12:30', course: 'CSIT1102', title: 'Theory of Operating Systems' },
+    { day: 3, class: 'dedt', start: '10:30', end: '12:30', course: 'DSIT1101', title: 'Theory of Data Mining Pracs.' },
+    { day: 3, class: 'dece', start: '10:30', end: '12:30', course: 'ECIT1103', title: 'Signals and Systems Pracs.' },
+    { day: 3, class: 'dcs', start: '10:30', end: '12:30', course: 'ADIT1103', title: 'Social Issues in Computing' },
+    { day: 3, class: 'ditb', start: '10:30', end: '12:30', course: 'DIT1104', title: 'Digital Entrepreneurship' },
+
+    { day: 3, class: 'dsma', start: '10:30', end: '12:30', course: 'BGM1101', title: 'Comm. Skills' },
+
+    { day: 3, class: 'dswe', start: '13:30', end: '15:30', course: 'CSIT1102', title: 'Theory of Operating Systems Pracs.' },
+    { day: 3, class: 'dedt', start: '13:30', end: '15:30', course: 'DEDT1101', title: 'Intro to Emerging Tech.' },
+    { day: 3, class: 'dsma', start: '13:30', end: '15:30', course: 'DSIT1102', title: 'Intro to Programming' },
+    { day: 3, class: 'dece', start: '13:30', end: '15:30', course: 'CSIT1112', title: 'Engineering Mathematics' },
+    { day: 3, class: 'dcs', start: '13:30', end: '15:30', course: 'BCIT1102', title: 'Intro to Software Eng. Pracs.' },
+
+
+    // THURSDAY
+    { day: 4, class: 'dswe', start: '8:00', end: '10:00', course: 'DSWE1101', title: 'Theory of Digital Dev.' },
+    { day: 4, class: 'dedt', start: '8:00', end: '10:00', course: 'EDT1103', title: 'Intro to Emerging Tech.' },
+    { day: 4, class: 'dsma', start: '8:00', end: '10:00', course: 'DSMA1101', title: 'Intro to Data Science' },
+    { day: 4, class: 'dece', start: '8:00', end: '10:00', course: 'ECIT1104', title: 'Programming Skills' },
+    { day: 4, class: 'dcs', start: '8:00', end: '10:00', course: 'BCIT1111', title: 'Digital Dev. Theory' },
+    { day: 4, class: 'ditb', start: '8:00', end: '10:00', course: 'DIT1103', title: 'Intro to ICT' },
+
+    { day: 4, class: 'dswe', start: '10:30', end: '12:30', course: 'DSWE1102', title: 'Digital Dev. Pracs.' },
+    { day: 4, class: 'dedt', start: '10:30', end: '12:30', course: 'CSIT1102', title: 'Intro to OOP' },
+    { day: 4, class: 'dece', start: '10:30', end: '12:30', course: 'ECIT1104', title: 'Programming Skills Pracs.' },
+    { day: 4, class: 'dcs', start: '10:30', end: '12:30', course: 'BCIT1111', title: 'Digital Dev. Pracs.' },
+    { day: 4, class: 'ditb', start: '10:30', end: '12:30', course: 'BCIT1112', title: 'Theory of Digital Dev.' },
+    { day: 4, class: 'dsma', start: '10:30', end: '12:30', course: 'DSIT1101', title: 'Theory of Data Mining' },
+
+    { day: 4, class: 'dswe', start: '13:30', end: '15:30', course: 'CSIT1112', title: 'Fund. Practical Intro to OOP' },
+    { day: 4, class: 'dece', start: '13:30', end: '15:30', course: 'ECIT1101', title: 'Digital Logic' },
+
+
+    // FRIDAY
+    { day: 5, class: 'dswe', start: '8:00', end: '10:00', course: 'CSIT1102', title: 'Intro to OOP' },
+    { day: 5, class: 'dsma', start: '8:00', end: '10:00', course: 'CSIT1112', title: 'Engineer Maths' },
+    { day: 5, class: 'dece', start: '8:00', end: '10:00', course: 'ECIT1111', title: 'Intro to Programming' },
+    { day: 5, class: 'dcs', start: '8:00', end: '10:00', course: 'ADIT1101', title: 'Maths & Functions' },
+    { day: 5, class: 'ditb', start: '8:00', end: '10:00', course: 'DIT114', title: 'Digital Entrepreneurship' },
+
+    { day: 5, class: 'dswe', start: '10:30', end: '12:30', course: 'CSIT1102', title: 'Intro to OOP Pracs.' },
+    { day: 5, class: 'dedt', start: '10:30', end: '12:30', course: 'CSIT1112', title: 'Engineer Maths' },
+    { day: 5, class: 'dsma', start: '10:30', end: '12:30', course: 'CSIT1102', title: 'Theory of OOP' },
+    { day: 5, class: 'dece', start: '10:30', end: '12:30', course: 'CSIT1112', title: 'Engineer Maths' },
+    { day: 5, class: 'dcs', start: '10:30', end: '12:30', course: 'ADIT1102', title: 'Theory of Data Science' },
+    { day: 5, class: 'ditb', start: '10:30', end: '12:30', course: 'BCIT1102', title: 'Theory of OOP' },
+];
+// ------------------------------------------------------------------
+
+let currentClass = "";    
+
+function openPage(page){
+  document.getElementById("message").textContent = "";
+  document.getElementById("coord-msg").textContent = "";
+  document.getElementById("admin-msg").textContent = "";
+  document.getElementById("password-msg").textContent = "";
+
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  
+  if(classNames.includes(page)){ // Check if it's a class page
+    currentClass = page;
+    document.getElementById("class-page").classList.add("active");
+    
+    // --- NEW LOGIC TO UPDATE SESSION TYPE ---
+    updateSessionType(page);
+    // ----------------------------------------
+    
+    document.getElementById("student-name").value = "";
+    document.getElementById("student-reg").value = "";
+    document.getElementById("student-password").value = "";
+    getLocation(); 
+    
+  } else {
+    document.getElementById(page).classList.add("active");
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * Parses a time string (e.g., "10:30") into minutes past midnight.
+ * @param {string} timeStr - Time string in HH:MM format.
+ * @returns {number} Minutes past midnight.
+ */
+function timeToMinutes(timeStr) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
+/**
+ * Populates the session type dropdown with currently scheduled lectures for the selected class.
+ * @param {string} selectedClass - The class abbreviation (e.g., 'dswe').
+ */
+function updateSessionType(selectedClass) {
+    const select = document.getElementById("session-type");
+    select.innerHTML = ''; // Clear existing options
+    select.disabled = false;
+
+    const now = new Date();
+    // Use 1 for Monday through 5 for Friday, 0 for Sunday, 6 for Saturday (JavaScript getDay())
+    const currentDay = now.getDay(); 
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    // The timetable data uses 1=Monday to 5=Friday
+    const dayMap = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }; 
+    const timetableDay = dayMap[currentDay];
+
+    let currentSessions = [];
+
+    if (timetableDay) {
+        currentSessions = timetableData.filter(session => {
+            const sessionStart = timeToMinutes(session.start);
+            const sessionEnd = timeToMinutes(session.end);
+            
+            return (
+                session.day === timetableDay && 
+                session.class === selectedClass &&
+                currentMinutes >= sessionStart &&
+                currentMinutes < sessionEnd 
+            );
+        });
+    }
+
+    if (currentSessions.length > 0) {
+        currentSessions.forEach((session, index) => {
+            const option = document.createElement('option');
+            // Value is a composite key for unique logging/reporting
+            option.value = `${session.class}-${session.course}-${session.start}-${session.end}`;
+            option.textContent = `${session.course}: ${session.title} (${session.start} - ${session.end})`;
+            select.appendChild(option);
+            
+            if (index === 0) {
+                option.selected = true;
+            }
+        });
+    } else {
+        // If no current session, add default "No Class" option
+        const noClassOption = document.createElement('option');
+        noClassOption.value = 'no_class';
+        noClassOption.textContent = `No scheduled lecture for ${selectedClass.toUpperCase()} right now.`;
+        noClassOption.selected = true;
+        select.appendChild(noClassOption);
+        select.disabled = true; // Disable selection if nothing is running
+    }
+
+    // Add generic "Other Activity" option at the end
+    const otherOption = document.createElement('option');
+    otherOption.value = 'other_activity';
+    otherOption.textContent = 'Other Activity (e.g. Graduation/Seminar)';
+    select.appendChild(otherOption);
+
+    // If only one option (no class + other), disable it if it's "no_class"
+    if (select.options.length === 2 && select.options[0].value === 'no_class') {
+         select.disabled = false; // Allow them to pick "Other Activity"
+         select.options[1].selected = true; // Select "Other Activity" by default if no class is running
+    } else if (select.options.length === 1 && select.options[0].value === 'no_class') {
+         select.disabled = true; // No point in submitting if only 'no_class' is available
+    }
+}
+// ----------------------------------------------------
+
+function submitAttendance(){
+  const name = document.getElementById("student-name").value.trim();
+  const reg = document.getElementById("student-reg").value.trim();
+  const pass = document.getElementById("student-password").value;
+  const sessionType = document.getElementById("session-type").value; // Capture selected session (now a course code or activity)
+  const msg = document.getElementById("message");
+
+  if(!name || !reg || !pass){ msg.textContent="⚠️ Please fill all fields"; msg.className="error"; return; }
+  
+  if (!isLocationValid) { 
+      msg.textContent="❌ Location check failed. You must be on campus to submit attendance."; 
+      msg.className="error"; 
+      return; 
+  }
+  
+  if(pass !== classPasswords[currentClass]){ msg.textContent="❌ Wrong class password"; msg.className="error"; return; }
+
+  // Prevent submission if the only selected option is 'no_class'
+  if (sessionType === 'no_class') {
+       msg.textContent="❌ Cannot submit. No scheduled lecture is running and 'Other Activity' was not selected."; 
+       msg.className="error"; 
+       return; 
+  }
+
+  const time = new Date().toLocaleString();
+  let students = JSON.parse(localStorage.getItem(currentClass)) || [];
+  
+  const today = new Date().toLocaleDateString();
+  
+  // Check for duplicate submission for the SAME registration and the SELECTED session type TODAY
+  const isDuplicate = students.some(s => 
+      s.reg === reg && 
+      new Date(s.time).toLocaleDateString() === today &&
+      s.sessionType === sessionType 
+  ); 
+  if(isDuplicate) {
+    msg.textContent=`⚠️ You've already submitted attendance for this session today.`; 
+    msg.className="error"; 
+    return;
+  }
+  
+  students.push({name, reg, time, attended:false, sessionType: sessionType}); // Store sessionType
+  localStorage.setItem(currentClass, JSON.stringify(students));
+
+  msg.textContent=`✅ Attendance for the selected session submitted successfully!`;
+  msg.className="success";
+  document.getElementById("student-name").value="";
+  document.getElementById("student-reg").value="";
+  document.getElementById("student-password").value="";
+}
+
+// --- GEOLOCATION FUNCTIONS (PRESERVED) ---
+
+function getLocation() {
+    const coordsDiv = document.getElementById("geo-coords");
+    const accuracyDiv = document.getElementById("geo-accuracy");
+    const statusDiv = document.getElementById("geo-status");
+    const submitBtn = document.getElementById("submitAttendanceBtn");
+    const refreshBtn = document.getElementById("refreshLocationBtn");
+
+    isLocationValid = false;
+    submitBtn.disabled = true;
+    coordsDiv.innerHTML = '<span>Coordinates</span><span style="font-size: 18px; margin-left: 5px;">&#x1F4CD;</span>';
+    accuracyDiv.innerHTML = 'Accuracy: ...';
+    statusDiv.innerHTML = '<span style="font-size: 18px;">&#x2705;</span> Checking campus location...';
+    statusDiv.className = "geo-status geo-medium";
+    refreshBtn.disabled = true;
+
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showPosition, showError, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
+    } else {
+        statusDiv.innerHTML = "❌ Geolocation not supported by this device.";
+        statusDiv.className = "geo-status geo-bad";
+        refreshBtn.disabled = false;
+    }
+}
+
+function showPosition(position) {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+    const acc = position.coords.accuracy;
+
+    document.getElementById("geo-coords").innerHTML = 
+        `<span>Latitude ${lat.toFixed(6)}, Longitude ${lon.toFixed(6)}</span><span style="font-size: 18px; margin-left: 5px;">&#x1F4CD;</span>`;
+    document.getElementById("geo-accuracy").innerHTML = `Accuracy\n${acc.toFixed(2)} m`;
+
+    const statusDiv = document.getElementById("geo-status");
+    const refreshBtn = document.getElementById("refreshLocationBtn");
+
+    if (acc <= 20) {
+        statusDiv.innerHTML = '<span style="font-size: 18px;">&#x2705;</span> Your location accuracy is good';
+        statusDiv.className = "geo-status geo-good";
+    } else if (acc <= 50) {
+        statusDiv.innerHTML = '<span style="font-size: 18px;">&#x2705;</span> Accuracy is medium';
+        statusDiv.className = "geo-status geo-medium";
+    } else {
+        statusDiv.innerHTML = '⚠️ Accuracy is low';
+        statusDiv.className = "geo-status geo-bad";
+    }
+    
+    refreshBtn.disabled = false;
+    checkLocation(lat, lon);
+}
+
+function checkLocation(currentLat, currentLon) {
+    const submitBtn = document.getElementById("submitAttendanceBtn");
+    const statusDiv = document.getElementById("geo-status");
+    let allowed = false;
+
+    for (let loc of uictLocations) {
+        const distanceSq = Math.pow(currentLat - loc.lat, 2) + Math.pow(currentLon - loc.lon, 2);
+        if (Math.sqrt(distanceSq) <= ALLOWED_DISTANCE_THRESHOLD) {
+            allowed = true;
+            break;
+        }
+    }
+
+    if (allowed) {
+        isLocationValid = true;
+        submitBtn.disabled = false;
+    } else {
+        isLocationValid = false;
+        submitBtn.disabled = true;
+        statusDiv.innerHTML = '❌ Off Campus. Submission blocked.';
+        statusDiv.className = "geo-status geo-bad"; 
+    }
+}
+
+function showError(error) {
+    const statusDiv = document.getElementById("geo-status");
+    const submitBtn = document.getElementById("submitAttendanceBtn");
+    const refreshBtn = document.getElementById("refreshLocationBtn");
+    isLocationValid = false;
+    submitBtn.disabled = true;
+    refreshBtn.disabled = false;
+    statusDiv.className = "geo-status geo-bad";
+    switch(error.code) {
+        case error.PERMISSION_DENIED:
+            statusDiv.innerHTML = "❌ Geolocation permission denied. Cannot submit attendance.";
+            break;
+        case error.POSITION_UNAVAILABLE:
+            statusDiv.innerHTML = "❌ Location information is unavailable.";
+            break;
+        case error.TIMEOUT:
+            statusDiv.innerHTML = "❌ Location request timed out.";
+            break;
+        default:
+            statusDiv.innerHTML = "❌ An unknown location error occurred.";
+            break;
+    }
+}
+
+// --- COORDINATOR FUNCTIONS (MODIFIED TO SHOW SESSION TYPE) ---
+
+function loadClass(){
+  const className = document.getElementById("class-select").value;
+  const pass = document.getElementById("coordinator-password").value;
+  const msg = document.getElementById("coord-msg");
+
+  if(!className){ msg.textContent="⚠️ Select a class"; msg.className="error"; return; }
+  if(pass !== coordinatorPasswords[className]){ msg.textContent="❌ Wrong coordinator password"; msg.className="error"; return; }
+
+  currentClass = className;
+  msg.textContent="✅ Class loaded!";
+  msg.className="success";
+  document.getElementById("attendance-section").style.display="block";
+  document.getElementById("class-att-title").textContent = className.toUpperCase() + " Attendance Records";
+  renderTable();
+  document.getElementById("coordinator-password").value = "";
+}
+
+function renderTable(){
+  const tbody = document.querySelector("#students-table tbody");
+  tbody.innerHTML = "";
+  const students = JSON.parse(localStorage.getItem(currentClass)) || [];
+  
+  const studentsReversed = [...students].reverse(); 
+  
+  const tableHead = document.querySelector("#students-table thead tr");
+  // Ensure table headers are correct
+  tableHead.innerHTML = `
+    <th>Name</th>    
+    <th>Reg Number</th>    
+    <th>Status</th>    
+    <th>Session Type</th> 
+    <th>Submitted At</th>    
+  `;
+  
+  studentsReversed.forEach((s, i)=>{
+    const originalIndex = students.length - 1 - i; 
+    
+    const submissionDate = new Date(s.time).toLocaleDateString();
+    const today = new Date().toLocaleDateString();
+    const isToday = submissionDate === today;
+    
+    // Attempt to format the session display from the stored value
+    let sessionDisplay = s.sessionType || "N/A";
+    if (s.sessionType.includes('-')) {
+        // Assume format: CLASS-COURSE-START-END
+        const parts = s.sessionType.split('-');
+        sessionDisplay = `${parts[1] || 'N/A'} (${parts[2]} - ${parts[3]})`;
+    } else if (s.sessionType === 'other_activity') {
+        sessionDisplay = 'Other Activity';
+    }
+
+
+    let statusHTML;
+    if(s.attended) {
+        statusHTML = "✅ Present";
+    } else if (isToday) {
+        statusHTML = `<button class='confirm-btn' onclick='markPresent(${originalIndex})'>Confirm Presence</button>`;
+    } else {
+        statusHTML = "Unconfirmed (Past)";
+    }
+    
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.name}</td>
+      <td>${s.reg}</td>
+      <td>${statusHTML}</td>
+      <td>${sessionDisplay}</td> 
+      <td>${s.time}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function markPresent(index){
+  const students = JSON.parse(localStorage.getItem(currentClass)) || [];
+  students[index].attended = true;
+  localStorage.setItem(currentClass, JSON.stringify(students));
+  renderTable();
+}
+
+function clearDailyAttendance() {
+    if (!currentClass) return;
+    
+    const students = JSON.parse(localStorage.getItem(currentClass)) || [];
+    const today = new Date().toLocaleDateString();
+    
+    const filteredStudents = students.filter(s => {
+        const submissionDate = new Date(s.time).toLocaleDateString();
+        return s.attended || submissionDate !== today;
+    });
+
+    if (filteredStudents.length === students.length) {
+        document.getElementById("coord-msg").textContent = "ℹ️ No unconfirmed attendance records found for today.";
+        document.getElementById("coord-msg").className = "error";
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to clear all unconfirmed attendance submissions for ${currentClass.toUpperCase()} from TODAY? This action cannot be undone.`)) {
+        localStorage.setItem(currentClass, JSON.stringify(filteredStudents));
+        document.getElementById("coord-msg").textContent = "🗑️ Daily unconfirmed attendance cleared successfully!";
+        document.getElementById("coord-msg").className = "success";
+        renderTable();
+    } else {
+        document.getElementById("coord-msg").textContent = "Operation cancelled.";
+        document.getElementById("coord-msg").className = "error";
+    }
+}
+
+function downloadPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const students = JSON.parse(localStorage.getItem(currentClass)) || [];
+  const now = new Date().toLocaleString();
+  const tableTitle = `UICT Attendance - ${currentClass.toUpperCase()}`;
+  
+  const head = [['Name', 'Reg Number', 'Status', 'Session Type', 'Submitted At']];
+  const body = students.map(s => {
+      let sessionDisplay = s.sessionType || "N/A";
+      if (s.sessionType && s.sessionType.includes('-')) {
+          const parts = s.sessionType.split('-');
+          sessionDisplay = `${parts[1] || 'N/A'} (${parts[2]} - ${parts[3]})`;
+      } else if (s.sessionType === 'other_activity') {
+          sessionDisplay = 'Other Activity';
+      }
+
+      return [
+        s.name, 
+        s.reg, 
+        s.attended ? "Present" : "Absent/Unconfirmed", 
+        sessionDisplay, 
+        s.time
+      ];
+  });
+  
+  doc.setFontSize(18);
+  doc.text(tableTitle, 14, 20);
+  doc.setFontSize(10);
+  doc.text(`Generated: ${now}`, 14, 28);
+
+  if (doc.autoTable) {
+      doc.autoTable({
+          startY: 35,
+          head: head,
+          body: body,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [0, 240, 255], textColor: [15, 17, 26] }
+      });
+  } else {
+      let y = 40;
+      doc.setFontSize(10);
+      doc.text(head[0].join(' | '), 14, y);
+      y += 5;
+      doc.text("------------------------------------------------------------------------------------------------", 14, y); 
+      y += 5;
+
+      students.forEach((s) => {
+          const status = s.attended ? "Present" : "Absent/Unconfirmed";
+          let session = s.sessionType || "N/A";
+          if (s.sessionType && s.sessionType.includes('-')) {
+              const parts = s.sessionType.split('-');
+              session = `${parts[1] || 'N/A'} (${parts[2]} - ${parts[3]})`;
+          } else if (s.sessionType === 'other_activity') {
+              session = 'Other Activity';
+          }
+
+          doc.text(`${s.name} | ${s.reg} | ${status} | ${session} | ${s.time}`, 14, y); 
+          y += 5; 
+      });
+  }
+
+  doc.save(`${currentClass}_full_attendance_record.pdf`);
+}
+
+function generateReport(){
+  const students = JSON.parse(localStorage.getItem(currentClass)) || [];
+  let dailyPresent = 0, dailyUnconfirmed = 0;
+  let totalConfirmed = 0;
+  const today = new Date().toLocaleDateString();
+
+  students.forEach(s=>{
+    const submissionDate = new Date(s.time).toLocaleDateString();
+    
+    if(s.attended){
+      totalConfirmed++;
+      if(submissionDate === today) dailyPresent++;
+    } else {
+      if(submissionDate === today) dailyUnconfirmed++; 
+    }
+  });
+
+  alert(`📊 Report for ${currentClass.toUpperCase()} (as of ${today}):\n
+  Today's Attendance (Confirmed):\n
+  Present: ${dailyPresent} \n
+  Unconfirmed: ${dailyUnconfirmed} \n
+  Total Historical Confirmed Records: ${totalConfirmed} (across all recorded days)`);
+}
+
+// --- ADMIN/ROOM PORTAL FUNCTIONS (PRESERVED) ---
+
+function loadAllClasses() {
+    const currentAdminPass = localStorage.getItem('adminPassword') || adminPassword;
+    
+    const pass = document.getElementById("admin-password").value;
+    const msg = document.getElementById("admin-msg");
+    const adminContent = document.getElementById("admin-content");
+
+    if (pass !== currentAdminPass) {
+        msg.textContent = "❌ Wrong Admin password";
+        msg.className = "error";
+        adminContent.style.display = "none";
+        return;
+    }
+
+    msg.textContent = "✅ Admin access granted! (Default password is chaos12)";
+    msg.className = "success";
+    adminContent.style.display = "block";
+    document.getElementById("admin-password").value = "";
+
+    const listDiv = document.getElementById("all-students-list");
+    listDiv.innerHTML = "";
+
+    classNames.forEach(className => {
+        const students = JSON.parse(localStorage.getItem(className)) || [];
+        const container = document.createElement("div");
+        container.className = "class-report";
+        
+        // Find unique students (by registration number)
+        const uniqueStudents = {};
+        students.forEach(s => {
+            if (!uniqueStudents[s.reg] || new Date(s.time) > new Date(uniqueStudents[s.reg].time)) {
+                uniqueStudents[s.reg] = s;
+            }
+        });
+        
+        const uniqueStudentList = Object.values(uniqueStudents).sort((a, b) => a.reg.localeCompare(b.reg));
+
+        let tableHTML = `
+            <h4>${className.toUpperCase()} - Registered Students (${uniqueStudentList.length} Unique)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Reg Number</th>
+                        <th>Latest Submission (Session)</th> 
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        if (uniqueStudentList.length === 0) {
+             tableHTML += `<tr><td colspan="3" style="text-align:center;">No students registered for this class.</td></tr>`;
+        } else {
+            uniqueStudentList.forEach(s => {
+                let sessionDisplay = s.sessionType || "N/A";
+                if (s.sessionType && s.sessionType.includes('-')) {
+                    const parts = s.sessionType.split('-');
+                    sessionDisplay = `${parts[1] || 'N/A'}`; 
+                } else if (s.sessionType === 'other_activity') {
+                    sessionDisplay = 'Other Activity';
+                }
+
+                tableHTML += `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td>${s.reg}</td>
+                        <td>${new Date(s.time).toLocaleDateString()} (${sessionDisplay})</td> 
+                    </tr>
+                `;
+            });
+        }
+
+        tableHTML += `</tbody></table>`;
+        container.innerHTML = tableHTML;
+        listDiv.appendChild(container);
+    });
+}
+
+function changePassword() {
+    const target = document.getElementById("password-class-select").value;
+    const newPass = document.getElementById("new-password").value.trim();
+    const msg = document.getElementById("password-msg");
+
+    if (!target) { msg.textContent = "⚠️ Select a class/portal to change the password for."; msg.className = "error"; return; }
+    if (!newPass) { msg.textContent = "⚠️ Enter the new password."; msg.className = "error"; return; }
+    
+    let parts = target.split('_');
+    let classKey = parts[0];
+    let type = parts[1]; 
+
+    if (target === 'admin') {
+        adminPassword = newPass;
+        localStorage.setItem('adminPassword', adminPassword);
+        msg.textContent = `✅ Admin Portal Password successfully changed!`;
+    } else if (type === 'class') {
+        classPasswords[classKey] = newPass;
+        localStorage.setItem('classPasswords', JSON.stringify(classPasswords));
+        msg.textContent = `✅ ${classKey.toUpperCase()} Class Password successfully changed!`;
+    } else if (type === 'coord') {
+        coordinatorPasswords[classKey] = newPass;
+        localStorage.setItem('coordinatorPasswords', JSON.stringify(coordinatorPasswords));
+        msg.textContent = `✅ ${classKey.toUpperCase()} Coordinator Password successfully changed!`;
+    } else {
+        msg.textContent = "❌ Invalid selection target.";
+        msg.className = "error";
+        return;
+    }
+    
+    msg.className = "success";
+    document.getElementById("new-password").value = "";
+    // Re-read from localStorage after change to ensure sync
+    adminPassword = localStorage.getItem('adminPassword');
+    classPasswords = JSON.parse(localStorage.getItem('classPasswords'));
+    coordinatorPasswords = JSON.parse(localStorage.getItem('coordinatorPasswords'));
+}
+
+// --- Intro Animation & Matrix (PRESERVED) ---
+window.addEventListener("load", ()=>{
+  const letters = document.querySelectorAll("#intro .letter");
+  letters.forEach((l,i)=> l.style.animationDelay = (i*0.1) + "s");
+  setTimeout(()=>{
+    document.getElementById("intro").style.opacity="0";
+    document.getElementById("intro").style.pointerEvents="none";
+    document.getElementById("home").classList.add("active");
+  }, 2500);
+});
+
+const canvas = document.getElementById("matrixCanvas");
+const ctx = canvas.getContext("2d");
+
+function setCanvasDimensions() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+setCanvasDimensions();
+
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&()&^%";
+const fontSize = 16;
+let columns = Math.floor(canvas.width / fontSize);
+let drops = Array(columns).fill(1);
+
+function drawMatrix(){
+  if(columns !== Math.floor(canvas.width / fontSize)){
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
+  }
+  
+  ctx.fillStyle = "rgba(15, 17, 26, 0.05)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = "#00f0ff";
+  ctx.font = fontSize + "px monospace";
+
+  for(let i=0; i<drops.length; i++){
+    const text = letters.charAt(Math.floor(Math.random() * letters.length));
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+    if(drops[i] * fontSize > canvas.height && Math.random() > 0.975){    
+      drops[i] = 0;    
+    }    
+    drops[i]++;
+  }
+}
+
+setInterval(drawMatrix, 50);
+
+window.addEventListener("resize", ()=>{
+  setCanvasDimensions();
+  columns = Math.floor(canvas.width / fontSize);
+  drops = Array(columns).fill(1);
+});
+</script>  
+</body>
+</html>
